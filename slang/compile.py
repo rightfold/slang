@@ -22,6 +22,8 @@ def _compile(io, indent, expr, scope):
         if len(expr) != 0 and isinstance(expr[0], atom):
             if expr[0].name == 'fn':
                 return _compile_fn(io, indent, expr, scope)
+            elif expr[0].name == 'let':
+                return _compile_let(io, indent, expr, scope)
             elif expr[0].name == 'if':
                 return _compile_if(io, indent, expr, scope)
         return _compile_call(io, indent, expr, scope)
@@ -41,6 +43,12 @@ def _compile_fn(io, indent, expr, scope):
     body = _compile(io, indent + '    ', expr[2], scope | set(expr[1]))
     io.write(indent + '    return ' + body + '\n')
     return id
+
+def _compile_let(io, indent, expr, scope):
+    if len(expr) != 4:
+        raise CompileException()
+    iife = [[atom('fn'), [expr[1]], expr[3]], expr[2]]
+    return _compile(io, indent, iife, scope)
 
 def _compile_if(io, indent, expr, scope):
     if len(expr) != 4:
@@ -62,9 +70,9 @@ def _compile_call(io, indent, expr, scope):
     if isinstance(expr[0], atom):
         _compile_
     func = _compile(io, indent, expr[0], scope)
-    args = (_compile(io, indent, e, scope) for e in expr[1:])
+    args = [_compile(io, indent, e, scope) for e in expr[1:]]
     id = _fresh()
-    io.write(ident + id + ' = (' + func + ')(' + ', '.join(args) + ')\n')
+    io.write(indent + id + ' = ' + func + '(' + ', '.join(args) + ')\n')
     return id
 
 def _compile_var(io, indent, expr, scope):
@@ -76,8 +84,11 @@ def _compile_var(io, indent, expr, scope):
 
 class CompileTest(unittest.TestCase):
     def test_if(self):
+        #code = [atom('fn'), [atom('x'), atom('y'), atom('z')],
+        #         [atom('if'), atom('x'), atom('y'), atom('z')]]
         code = [atom('fn'), [atom('x'), atom('y'), atom('z')],
-                 [atom('if'), atom('x'), atom('y'), atom('z')]]
+                 [atom('let'), atom('a'), [atom('if'), atom('x'), atom('y'), atom('z')],
+                   atom('a')]]
         print(compile(code))
 
     def test_empty_list(self):
