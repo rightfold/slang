@@ -12,11 +12,26 @@ class CompileException(Exception):
     pass
 
 def compile(expr):
+    if (not isinstance(expr, list)
+        or len(expr) == 0
+        or expr[0] != atom('module')):
+        raise CompileException()
+
     scope = set()
     io = StringIO()
     io.write('from slang.atom import atom as _slang_atom\n')
     io.write('_slang_bool = bool\n')
-    _compile(io, '', expr, scope)
+    for e in expr[1:]:
+        if isinstance(e, list) and len(e) != 0 and e[0] == atom('def'):
+            if len(e) != 3:
+                raise CompileException()
+            if not isinstance(e[1], atom):
+                raise CompileException()
+            scope.add(e[1])
+            value = _compile(io, '', e[2], scope)
+            io.write(e[1].name + ' = ' + value + '\n')
+        else:
+            _compile(io, '', e, scope)
     return io.getvalue()
 
 def _compile(io, indent, expr, scope):
@@ -97,24 +112,18 @@ def _compile_var(io, indent, expr, scope):
     return id
 
 class CompileTest(unittest.TestCase):
-    def test_if(self):
-        code = [atom('fn'), [atom('x'), atom('y'), atom('z')],
-                 [atom('let'), atom('a'), [atom('if'), atom('x'), atom('y'), atom('z')],
-                   [atom('a'), [atom('quote'), [[], [[]], atom('a'), [atom('b')]]]]]]
-        print(compile(code))
-
     def test_empty_list(self):
         with self.assertRaises(CompileException):
-            compile([])
+            compile([atom('module'), []])
 
     def test_not_in_scope(self):
         with self.assertRaises(CompileException):
-            compile(atom('a'))
+            compile([atom('module'), atom('a')])
 
     def test_bad_lambda(self):
         with self.assertRaises(CompileException):
-            compile([atom('fn')])
+            compile([atom('module'), [atom('fn')]])
         with self.assertRaises(CompileException):
-            compile([atom('fn'), atom('a'), atom('a')])
+            compile([atom('module'), [atom('fn'), atom('a'), atom('a')]])
         with self.assertRaises(CompileException):
-            compile([atom('fn'), [atom('a'), []], atom('a')])
+            compile([atom('module'), [atom('fn'), [atom('a'), []], atom('a')]])
