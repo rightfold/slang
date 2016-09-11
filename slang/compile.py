@@ -22,6 +22,8 @@ def _compile(io, indent, expr, scope):
         if len(expr) != 0 and isinstance(expr[0], atom):
             if expr[0].name == 'fn':
                 return _compile_fn(io, indent, expr, scope)
+            elif expr[0].name == 'if':
+                return _compile_if(io, indent, expr, scope)
         return _compile_call(io, indent, expr, scope)
     elif isinstance(expr, atom):
         return _compile_var(io, indent, expr, scope)
@@ -38,6 +40,20 @@ def _compile_fn(io, indent, expr, scope):
     io.write(indent + 'def ' + id + '(' + ', '.join(p.name for p in expr[1]) + '):\n')
     body = _compile(io, indent + '    ', expr[2], scope | set(expr[1]))
     io.write(indent + '    return ' + body + '\n')
+    return id
+
+def _compile_if(io, indent, expr, scope):
+    if len(expr) != 4:
+        raise CompileException()
+    id = _fresh()
+    cond = _compile(io, indent, expr[1], scope)
+    io.write(indent + 'assert isinstance(' + cond + ', bool)\n')
+    io.write(indent + 'if ' + cond + ':\n')
+    true = _compile(io, indent + '    ', expr[2], scope)
+    io.write(indent + '    ' + id + ' = ' + true + '\n')
+    io.write(indent + 'else:\n')
+    false = _compile(io, indent + '    ', expr[3], scope)
+    io.write(indent + '    ' + id + ' = ' + false + '\n')
     return id
 
 def _compile_call(io, indent, expr, scope):
@@ -59,12 +75,10 @@ def _compile_var(io, indent, expr, scope):
     return id
 
 class CompileTest(unittest.TestCase):
-    def test(self):
-        code = [atom('fn'), [atom('x')], atom('x')]
-        token = object()
-        scope = {}
-        exec(compile(code), scope)
-        self.assertEqual(scope['_v1'](token), token)
+    def test_if(self):
+        code = [atom('fn'), [atom('x'), atom('y'), atom('z')],
+                 [atom('if'), atom('x'), atom('y'), atom('z')]]
+        print(compile(code))
 
     def test_empty_list(self):
         with self.assertRaises(CompileException):
