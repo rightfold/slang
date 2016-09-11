@@ -14,6 +14,7 @@ class CompileException(Exception):
 def compile(expr):
     scope = set()
     io = StringIO()
+    io.write('from slang.atom import atom as _slang_atom\n')
     io.write('_slang_bool = bool\n')
     _compile(io, '', expr, scope)
     return io.getvalue()
@@ -27,6 +28,8 @@ def _compile(io, indent, expr, scope):
                 return _compile_let(io, indent, expr, scope)
             elif expr[0].name == 'if':
                 return _compile_if(io, indent, expr, scope)
+            elif expr[0].name == 'quote':
+                return _compile_quote(io, indent, expr, scope)
         return _compile_call(io, indent, expr, scope)
     elif isinstance(expr, atom):
         return _compile_var(io, indent, expr, scope)
@@ -65,11 +68,21 @@ def _compile_if(io, indent, expr, scope):
     io.write(indent + '    ' + id + ' = ' + false + '\n')
     return id
 
+def _compile_quote(io, indent, expr, scope):
+    def quote(expr):
+        if isinstance(expr, list):
+            return '[' + ', '.join(quote(e) for e in expr) + ']'
+        elif isinstance(expr, atom):
+            return '_slang_atom(' + repr(expr.name) + ')'
+        else:
+            raise CompileException()
+    id = _fresh()
+    io.write(indent + id + ' = ' + quote(expr[1]) + '\n')
+    return id
+
 def _compile_call(io, indent, expr, scope):
     if len(expr) == 0:
         raise CompileException()
-    if isinstance(expr[0], atom):
-        _compile_
     func = _compile(io, indent, expr[0], scope)
     args = [_compile(io, indent, e, scope) for e in expr[1:]]
     id = _fresh()
@@ -85,11 +98,9 @@ def _compile_var(io, indent, expr, scope):
 
 class CompileTest(unittest.TestCase):
     def test_if(self):
-        #code = [atom('fn'), [atom('x'), atom('y'), atom('z')],
-        #         [atom('if'), atom('x'), atom('y'), atom('z')]]
         code = [atom('fn'), [atom('x'), atom('y'), atom('z')],
                  [atom('let'), atom('a'), [atom('if'), atom('x'), atom('y'), atom('z')],
-                   atom('a')]]
+                   [atom('a'), [atom('quote'), [[], [[]], atom('a'), [atom('b')]]]]]]
         print(compile(code))
 
     def test_empty_list(self):
