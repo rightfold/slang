@@ -6,7 +6,7 @@ __fresh = 0
 def _fresh():
     global __fresh
     __fresh += 1
-    return '_v' + str(__fresh)
+    return '_slang_' + str(__fresh)
 
 class CompileException(Exception):
     pass
@@ -14,6 +14,7 @@ class CompileException(Exception):
 def compile(expr):
     scope = set()
     io = StringIO()
+    io.write('_slang_bool = bool\n')
     _compile(io, '', expr, scope)
     return io.getvalue()
 
@@ -55,7 +56,7 @@ def _compile_if(io, indent, expr, scope):
         raise CompileException()
     id = _fresh()
     cond = _compile(io, indent, expr[1], scope)
-    io.write(indent + 'assert isinstance(' + cond + ', bool)\n')
+    io.write(indent + 'assert isinstance(' + cond + ', _slang_bool)\n')
     io.write(indent + 'if ' + cond + ':\n')
     true = _compile(io, indent + '    ', expr[2], scope)
     io.write(indent + '    ' + id + ' = ' + true + '\n')
